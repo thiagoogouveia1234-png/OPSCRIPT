@@ -1,0 +1,399 @@
+--==================================================
+-- MM2 HUB + AUTO FARM Coin_Server (GUI Melhorada)
+--==================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local LP = Players.LocalPlayer
+if not LP then return end
+local PG = LP:WaitForChild("PlayerGui")
+
+--==================================================
+-- CHARACTER
+--==================================================
+local Character = LP.Character or LP.CharacterAdded:Wait()
+local HRP = Character:FindFirstChild("HumanoidRootPart")
+
+local function refreshCharacter(char)
+	Character = char
+	HRP = char:WaitForChild("HumanoidRootPart")
+end
+LP.CharacterAdded:Connect(refreshCharacter)
+
+--==================================================
+-- STATE
+--==================================================
+local farming = false
+local FLY_SPEED = 15
+
+--==================================================
+-- UTIL - Tween helper
+--==================================================
+local function tween(instance, props, time, style, direction)
+	local info = TweenInfo.new(time or 0.18, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
+	local tw = TweenService:Create(instance, info, props)
+	tw:Play()
+	return tw
+end
+
+--==================================================
+-- FLOAT BUTTON (BOLA S) - top-right, animação hover
+--==================================================
+local floatGui = Instance.new("ScreenGui")
+floatGui.Name = "FloatButton"
+floatGui.ResetOnSpawn = false
+floatGui.Parent = PG
+
+local floatBtn = Instance.new("TextButton")
+floatBtn.Name = "FloatS"
+floatBtn.Size = UDim2.new(0,60,0,60)                      -- um pouco maior
+floatBtn.Position = UDim2.new(1, -80, 0, 40)               -- canto direito, não tão alto
+floatBtn.AnchorPoint = Vector2.new(0,0)
+floatBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
+floatBtn.Text = "S"
+floatBtn.TextColor3 = Color3.fromRGB(255,255,255)
+floatBtn.TextScaled = true
+floatBtn.Font = Enum.Font.GothamBold
+floatBtn.Parent = floatGui
+floatBtn.AutoButtonColor = true
+floatBtn.BorderSizePixel = 0
+floatBtn.ZIndex = 10
+local floatCorner = Instance.new("UICorner", floatBtn)
+floatCorner.CornerRadius = UDim.new(1,0)
+
+-- hover animation state
+local floatHoverTween, floatUnhoverTween
+local isHovered = false
+local normalProps = {Size = floatBtn.Size, Position = floatBtn.Position, BackgroundColor3 = floatBtn.BackgroundColor3}
+local hoverProps = {Size = UDim2.new(0,74,0,74), Position = UDim2.new(1, -90, 0, 34), BackgroundColor3 = Color3.fromRGB(0,170,255)}
+
+floatBtn.MouseEnter:Connect(function()
+	if isHovered then return end
+	isHovered = true
+	-- Tween size/position/color
+	if floatUnhoverTween then floatUnhoverTween:Cancel() end
+	floatHoverTween = tween(floatBtn, hoverProps, 0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+end)
+
+floatBtn.MouseLeave:Connect(function()
+	if not isHovered then return end
+	isHovered = false
+	-- Reverter para normal
+	if floatHoverTween then floatHoverTween:Cancel() end
+	floatUnhoverTween = tween(floatBtn, {Size = normalProps.Size, Position = normalProps.Position, BackgroundColor3 = normalProps.BackgroundColor3}, 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+end)
+
+-- Click toggle hub
+-- (hub defined later; we'll set a placeholder and assign actual behavior after hub creation)
+local toggleHubOnClick
+floatBtn.MouseButton1Click:Connect(function()
+	if toggleHubOnClick then toggleHubOnClick() end
+end)
+
+--==================================================
+-- HUB GUI
+--==================================================
+local hub = Instance.new("ScreenGui")
+hub.Name = "SlenderHub"
+hub.ResetOnSpawn = false
+hub.Enabled = false
+hub.Parent = PG
+
+local main = Instance.new("Frame", hub)
+main.Size = UDim2.new(0,420,0,260)
+main.Position = UDim2.new(0.5,-210,0.5,-130)
+main.BackgroundColor3 = Color3.fromRGB(0,0,0) -- totalmente preto
+main.BorderSizePixel = 0
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,12)
+
+-- TITLE BAR
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, -20, 0, 44)
+title.Position = UDim2.new(0,10,0,8)
+title.BackgroundTransparency = 1
+title.Text = "Slender Hub"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.TextScaled = false
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- CLOSE BUTTON
+local close = Instance.new("TextButton", main)
+close.Size = UDim2.new(0,34,0,34)
+close.Position = UDim2.new(1,-44,0,6)
+close.Text = "X"
+close.TextScaled = true
+close.Font = Enum.Font.GothamBold
+close.BackgroundColor3 = Color3.fromRGB(170,60,60)
+close.TextColor3 = Color3.fromRGB(255,255,255)
+close.BorderSizePixel = 0
+Instance.new("UICorner", close).CornerRadius = UDim.new(0,6)
+
+close.MouseButton1Click:Connect(function()
+	hub.Enabled = false
+end)
+
+-- TABS: HOME | MAIN | INFORMAÇÕES
+local tabsFrame = Instance.new("Frame", main)
+tabsFrame.Size = UDim2.new(1, -20, 0, 46)
+tabsFrame.Position = UDim2.new(0,10,0,60)
+tabsFrame.BackgroundTransparency = 1
+
+local function makeTab(name, posX)
+	local btn = Instance.new("TextButton", tabsFrame)
+	btn.Size = UDim2.new(0,120,0,36)
+	btn.Position = UDim2.new(0, posX, 0, 5)
+	btn.Text = name
+	btn.Font = Enum.Font.GothamBold
+	btn.TextSize = 16
+	btn.TextColor3 = Color3.fromRGB(200,200,200)
+	btn.BackgroundColor3 = Color3.fromRGB(25,25,25)
+	btn.BorderSizePixel = 0
+	btn.AutoButtonColor = false
+	local corner = Instance.new("UICorner", btn)
+	corner.CornerRadius = UDim.new(0,8)
+	return btn
+end
+
+local homeTab = makeTab("HOME", 0)
+homeTab.TextColor3 = Color3.fromRGB(255,255,255) -- HOME em branco pedido
+local mainTab = makeTab("MAIN", 0.34)
+local infoTab = makeTab("INFORMAÇÕES", 0.68)
+
+-- CONTENT AREA
+local content = Instance.new("Frame", main)
+content.Size = UDim2.new(1, -20, 1, -120)
+content.Position = UDim2.new(0,10,0,110)
+content.BackgroundTransparency = 1
+
+local homeFrame = Instance.new("Frame", content)
+homeFrame.Size = UDim2.new(1,0,1,0)
+homeFrame.BackgroundTransparency = 1
+homeFrame.Visible = true
+
+local mainFrame = Instance.new("Frame", content)
+mainFrame.Size = UDim2.new(1,0,1,0)
+mainFrame.BackgroundTransparency = 1
+mainFrame.Visible = false
+
+local infoFrame = Instance.new("Frame", content)
+infoFrame.Size = UDim2.new(1,0,1,0)
+infoFrame.BackgroundTransparency = 1
+infoFrame.Visible = false
+
+-- HOME content (example)
+local homeLabel = Instance.new("TextLabel", homeFrame)
+homeLabel.Size = UDim2.new(1,0,0,30)
+homeLabel.Position = UDim2.new(0,0,0,0)
+homeLabel.BackgroundTransparency = 1
+homeLabel.Text = "Bem-vindo(a)!"
+homeLabel.Font = Enum.Font.GothamBold
+homeLabel.TextSize = 18
+homeLabel.TextColor3 = Color3.fromRGB(255,255,255)
+homeLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- MAIN content (ex: auto farm button)
+local autoFarmBtn = Instance.new("TextButton", mainFrame)
+autoFarmBtn.Size = UDim2.new(0,180,0,44)
+autoFarmBtn.Position = UDim2.new(0,0,0,4)
+autoFarmBtn.Text = "AUTO FARM"
+autoFarmBtn.Font = Enum.Font.GothamBold
+autoFarmBtn.TextSize = 16
+autoFarmBtn.TextColor3 = Color3.fromRGB(255,255,255)
+autoFarmBtn.BackgroundColor3 = Color3.fromRGB(10,110,200)
+autoFarmBtn.BorderSizePixel = 0
+Instance.new("UICorner", autoFarmBtn).CornerRadius = UDim.new(0,8)
+
+-- INFO content
+local infoLabel = Instance.new("TextLabel", infoFrame)
+infoLabel.Size = UDim2.new(1,0,0,24)
+infoLabel.Position = UDim2.new(0,0,0,6)
+infoLabel.BackgroundTransparency = 1
+infoLabel.Text = "Informações"
+infoLabel.Font = Enum.Font.GothamBold
+infoLabel.TextSize = 16
+infoLabel.TextColor3 = Color3.fromRGB(255,255,255)
+infoLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local creditLabel = Instance.new("TextLabel", infoFrame)
+creditLabel.Size = UDim2.new(1,0,0,22)
+creditLabel.Position = UDim2.new(0,0,0,36)
+creditLabel.BackgroundTransparency = 1
+creditLabel.Text = "by: Thiagocag23" -- pedido
+creditLabel.Font = Enum.Font.Gotham
+creditLabel.TextSize = 14
+creditLabel.TextColor3 = Color3.fromRGB(200,200,200)
+creditLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Tab switching logic (visual highlight)
+local tabs = {
+	{btn = homeTab, frame = homeFrame},
+	{btn = mainTab, frame = mainFrame},
+	{btn = infoTab, frame = infoFrame},
+}
+
+local function setActive(tabBtn)
+	for _,t in ipairs(tabs) do
+		if t.btn == tabBtn then
+			t.btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+			t.btn.TextColor3 = Color3.fromRGB(255,255,255)
+			t.frame.Visible = true
+		else
+			t.btn.BackgroundColor3 = Color3.fromRGB(25,25,25)
+			t.btn.TextColor3 = Color3.fromRGB(180,180,180)
+			t.frame.Visible = false
+		end
+	end
+end
+
+homeTab.MouseButton1Click:Connect(function() setActive(homeTab) end)
+mainTab.MouseButton1Click:Connect(function() setActive(mainTab) end)
+infoTab.MouseButton1Click:Connect(function() setActive(infoTab) end)
+
+-- default active
+setActive(homeTab)
+
+-- Assign toggle function for floatBtn click now that hub exists
+toggleHubOnClick = function()
+	hub.Enabled = not hub.Enabled
+end
+
+--==================================================
+-- SIDE TOGGLE BUTTON (mantive estilo simples)
+--==================================================
+local sideGui = Instance.new("ScreenGui", PG)
+sideGui.Name = "SideToggle"
+sideGui.ResetOnSpawn = false
+sideGui.Enabled = false
+
+local toggleBtn = Instance.new("TextButton", sideGui)
+toggleBtn.Size = UDim2.new(0,140,0,45)
+toggleBtn.Position = UDim2.new(1,-155,0.5,-22)
+toggleBtn.Text = "ATIVAR FARM"
+toggleBtn.TextScaled = true
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0,200,255)
+toggleBtn.TextColor3 = Color3.fromRGB(0,0,0)
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0,8)
+
+toggleBtn.MouseButton1Click:Connect(function()
+	farming = not farming
+	if farming then
+		toggleBtn.Text = "DESATIVAR FARM"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(255,80,80)
+	else
+		toggleBtn.Text = "ATIVAR FARM"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(0,200,255)
+	end
+end)
+
+-- autoFarmBtn abre a sideGui
+autoFarmBtn.MouseButton1Click:Connect(function()
+	sideGui.Enabled = true
+	hub.Enabled = false
+end)
+
+--==================================================
+-- NOCLIP + FLY
+-- (mantive sua lógica original; não alterei o comportamento)
+--==================================================
+local noclipConn, bv, bg
+
+local function noclip(on)
+	if on then
+		noclipConn = RunService.Stepped:Connect(function()
+			if Character and Character.Parent then
+				for _,v in ipairs(Character:GetDescendants()) do
+					if v:IsA("BasePart") then v.CanCollide = false end
+				end
+			end
+		end)
+	else
+		if noclipConn then noclipConn:Disconnect() noclipConn = nil end
+	end
+end
+
+local function fly(on)
+	if on then
+		if not HRP or not HRP.Parent then return end
+		if not bv or not bv.Parent then
+			bv = Instance.new("BodyVelocity")
+			bv.MaxForce = Vector3.new(1e9,1e9,1e9)
+			bv.Parent = HRP
+		end
+		if not bg or not bg.Parent then
+			bg = Instance.new("BodyGyro")
+			bg.MaxTorque = Vector3.new(1e9,1e9,1e9)
+			bg.Parent = HRP
+		end
+	else
+		if bv then bv:Destroy() bv = nil end
+		if bg then bg:Destroy() bg = nil end
+	end
+end
+
+--==================================================
+-- COIN SCAN
+--==================================================
+local function getCoins()
+	local t = {}
+	local lobby = workspace:FindFirstChild("Lobby")
+	for _,v in ipairs(workspace:GetDescendants()) do
+		if v:IsA("BasePart") and v.Name == "Coin_Server" then
+			if not lobby or not v:IsDescendantOf(lobby) then
+				table.insert(t,v)
+			end
+		end
+	end
+	return t
+end
+
+--==================================================
+-- FARM LOOP
+--==================================================
+task.spawn(function()
+	while true do
+		if farming and HRP then
+			noclip(true)
+			fly(true)
+			for _,coin in ipairs(getCoins()) do
+				if not farming then break end
+				if coin and coin.Parent then
+					while farming and coin.Parent and (HRP.Position-coin.Position).Magnitude > 2 do
+						local dir = (coin.Position-HRP.Position)
+						if dir.Magnitude == 0 then break end
+						dir = dir.Unit
+						if bv then bv.Velocity = dir * FLY_SPEED end
+						if bg then
+							bg.CFrame = CFrame.lookAt(HRP.Position, coin.Position)
+						end
+						RunService.Heartbeat:Wait()
+					end
+				end
+			end
+		else
+			noclip(false)
+			fly(false)
+		end
+		task.wait(0.2)
+	end
+end)
+
+--==================================================
+-- KEYBINDS (opcional) - Pressione "P" para abrir/fechar hub
+--==================================================
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.KeyCode == Enum.KeyCode.P then
+		hub.Enabled = not hub.Enabled
+	end
+end)
+
+--==================================================
+-- FINAL
+--==================================================
+print("[SlenderHub] GUI carregada e estilizada.")
