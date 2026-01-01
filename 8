@@ -1,0 +1,175 @@
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local Player = Players.LocalPlayer
+local Gui = Instance.new("ScreenGui", game.CoreGui)
+Gui.ResetOnSpawn = false
+
+local savedLang = Player:FindFirstChild("SlenderLang")
+if not savedLang then
+	savedLang = Instance.new("StringValue", Player)
+	savedLang.Name = "SlenderLang"
+	savedLang.Value = ""
+end
+
+local popcorn = Instance.new("TextButton", Gui)
+popcorn.Size = UDim2.new(0,45,0,45)
+popcorn.Position = UDim2.new(0.05,0,0.5,0)
+popcorn.Text = "🍿"
+popcorn.TextScaled = true
+popcorn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+popcorn.TextColor3 = Color3.new(1,1,1)
+popcorn.Active = true
+popcorn.Draggable = true
+Instance.new("UICorner", popcorn)
+
+local main = Instance.new("Frame", Gui)
+main.Size = UDim2.new(0,320,0,260)
+main.Position = UDim2.new(0.5,-160,0.5,-130)
+main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+main.Visible = false
+Instance.new("UICorner", main)
+
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1,0,0,30)
+title.BackgroundTransparency = 1
+title.Text = "Slender Hub"
+title.Font = Enum.Font.Arcade
+title.TextColor3 = Color3.new(1,1,1)
+title.TextScaled = true
+
+local sub = Instance.new("TextLabel", main)
+sub.Size = UDim2.new(1,0,0,15)
+sub.Position = UDim2.new(0,0,0,28)
+sub.BackgroundTransparency = 1
+sub.Text = "by: Thiagocag23"
+sub.TextColor3 = Color3.fromRGB(150,150,150)
+sub.TextScaled = true
+
+local close = Instance.new("TextButton", main)
+close.Size = UDim2.new(0,25,0,25)
+close.Position = UDim2.new(1,-30,0,5)
+close.Text = "X"
+close.TextColor3 = Color3.new(1,0,0)
+close.BackgroundTransparency = 1
+close.Font = Enum.Font.Arcade
+close.TextScaled = true
+
+local container = Instance.new("Frame", main)
+container.Size = UDim2.new(1,-20,1,-60)
+container.Position = UDim2.new(0,10,0,50)
+container.BackgroundTransparency = 1
+
+local function clear()
+	for _,v in pairs(container:GetChildren()) do
+		v:Destroy()
+	end
+end
+
+local function scrollFrame()
+	local sf = Instance.new("ScrollingFrame", container)
+	sf.Size = UDim2.new(1,0,1,0)
+	sf.CanvasSize = UDim2.new(0,0,0,0)
+	sf.ScrollBarThickness = 6
+	sf.BackgroundTransparency = 1
+	local layout = Instance.new("UIListLayout", sf)
+	layout.Padding = UDim.new(0,6)
+	layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		sf.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y+10)
+	end)
+	return sf
+end
+
+local function button(parent,text,callback)
+	local b = Instance.new("TextButton", parent)
+	b.Size = UDim2.new(1,-10,0,36)
+	b.Text = text
+	b.Font = Enum.Font.Arcade
+	b.TextScaled = true
+	b.BackgroundColor3 = Color3.fromRGB(40,40,40)
+	b.TextColor3 = Color3.new(1,1,1)
+	Instance.new("UICorner", b)
+	b.MouseButton1Click:Connect(callback)
+	return b
+end
+
+local function backButton(sf,func)
+	button(sf, savedLang.Value=="US" and "BACK" or "VOLTAR", func)
+end
+
+local function SAB()
+	clear()
+	local sf = scrollFrame()
+	backButton(sf, mainMenu)
+	button(sf,"LEMON HUB",function()
+		loadstring(game:HttpGet("https://pastefy.app/MJw2J4T6/raw"))()
+	end)
+	button(sf,"BK HUB",function()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/xenji0hub/XENJI-BKS-HUB/refs/heads/main/XENJI%20BKS%20HUB"))()
+	end)
+	button(sf,"LENNON HUB",function()
+		loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/6d08fbf253529a4fefa32ff404bd5448.lua"))()
+	end)
+	button(sf,"KURD HUB",function()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/Ninja10908/S4/refs/heads/main/Kurdhub"))()
+	end)
+end
+
+local function MM2()
+	clear()
+	local sf = scrollFrame()
+	backButton(sf, mainMenu)
+	button(sf,"OVERDRIVE",function()
+		loadstring(game:HttpGet("https://api.overdrivehub.xyz/v1/auth"))()
+	end)
+	button(sf,"YARHM",function()
+		loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-YARHM-12403"))()
+	end)
+end
+
+local function BLOX()
+	clear()
+	local sf = scrollFrame()
+	backButton(sf, mainMenu)
+	button(sf,"GRAVITY HUB",function()
+		loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Gravity-Hub-69908"))()
+	end)
+	button(sf,"REDZ HUB",function()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/luraobermeyer-jpg/redzhub/refs/heads/main/redzhub.lua.txt"))()
+	end)
+end
+
+function mainMenu()
+	clear()
+	local sf = scrollFrame()
+	button(sf,"SAB",SAB)
+	button(sf,"MM2",MM2)
+	button(sf,"BLOX FRUITS",BLOX)
+end
+
+local function language()
+	clear()
+	local sf = scrollFrame()
+	button(sf,"🇧🇷 PORTUGUÊS",function()
+		savedLang.Value="BR"
+		mainMenu()
+	end)
+	button(sf,"🇺🇸 ENGLISH",function()
+		savedLang.Value="US"
+		mainMenu()
+	end)
+end
+
+popcorn.MouseButton1Click:Connect(function()
+	main.Visible = not main.Visible
+	if main.Visible then
+		if savedLang.Value=="" then
+			language()
+		else
+			mainMenu()
+		end
+	end
+end)
+
+close.MouseButton1Click:Connect(function()
+	main.Visible = false
+end)
